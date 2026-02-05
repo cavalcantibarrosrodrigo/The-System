@@ -1,0 +1,8 @@
+{
+  "name": "The System",
+  "description": "A gamified fitness application inspired by Solo Leveling. Features a 'System' interface, interactive body map for workout generation, stats tracking, and AI-powered coaching.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

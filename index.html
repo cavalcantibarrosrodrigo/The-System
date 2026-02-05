@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>The System | Player Status</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --color-mana: #00f3ff;
+        --color-alert: #ff003c;
+        --color-bg: #050505;
+      }
+      body {
+        background-color: var(--color-bg);
+        color: white;
+        font-family: 'Share Tech Mono', monospace;
+      }
+      h1, h2, h3, h4, .system-font {
+        font-family: 'Orbitron', sans-serif;
+      }
+      .neon-border {
+        box-shadow: 0 0 10px var(--color-mana), inset 0 0 5px var(--color-mana);
+        border: 1px solid var(--color-mana);
+      }
+      .neon-text {
+        text-shadow: 0 0 10px var(--color-mana);
+        color: var(--color-mana);
+      }
+      .alert-border {
+        box-shadow: 0 0 10px var(--color-alert), inset 0 0 5px var(--color-alert);
+        border: 1px solid var(--color-alert);
+      }
+      .alert-text {
+        text-shadow: 0 0 10px var(--color-alert);
+        color: var(--color-alert);
+      }
+      .glass-panel {
+        background: rgba(10, 20, 30, 0.7);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(0, 243, 255, 0.3);
+      }
+      /* Custom Scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #000; 
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #004444; 
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #00f3ff; 
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "@google/genai": "https://esm.sh/@google/genai@^1.38.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "recharts": "https://esm.sh/recharts@^3.7.0",
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
