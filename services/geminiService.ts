@@ -2,8 +2,8 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { SYSTEM_PROMPTS } from "../constants";
 import { WorkoutPlan, MuscleGroup, TrainingFrequency, Exercise, VolumeType } from "../types";
 
-// Initialize Gemini Client
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Lazy Initialize Gemini Client to prevent crash on load if env is missing
+const getAi = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 /**
  * Generates a structured workout plan.
@@ -20,6 +20,7 @@ export const generateWorkout = async (
   preferredDays: string[] = []
 ): Promise<WorkoutPlan | null> => {
   try {
+    const ai = getAi();
     let freqText = "";
     switch (frequency) {
         case 'every_other_day': freqText = "Dia Sim, Dia Não."; break;
@@ -141,6 +142,7 @@ export const getExerciseAlternatives = async (
     muscle: string
 ): Promise<Exercise[]> => {
     try {
+        const ai = getAi();
         const prompt = `
         Substitua o exercício "${currentExercise}" (Alvo: ${muscle}).
         Gere 4 alternativas biomecanicamente semelhantes.
@@ -194,6 +196,7 @@ export const getExerciseAlternatives = async (
  */
 export const visualizeGoal = async (prompt: string): Promise<string | null> => {
   try {
+    const ai = getAi();
     // Enhanced prompt for two-state visualization
     const enhancedPrompt = `
       Technical fitness illustration of: ${prompt}.
@@ -235,6 +238,7 @@ export const visualizeGoal = async (prompt: string): Promise<string | null> => {
  */
 export const chatWithSystem = async (message: string, history: {role: string, parts: {text: string}[]}[] = []): Promise<string> => {
   try {
+    const ai = getAi();
     const chat = ai.chats.create({
       model: 'gemini-3-pro-preview',
       config: {
@@ -256,6 +260,7 @@ export const chatWithSystem = async (message: string, history: {role: string, pa
  */
 export const analyzeImage = async (base64Image: string, promptText: string): Promise<string> => {
   try {
+    const ai = getAi();
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: {
@@ -285,6 +290,7 @@ export const analyzeImage = async (base64Image: string, promptText: string): Pro
  */
 export const getSkillDetails = async (skillName: string): Promise<{ description: string, execution: string[], technicalTips: string } | null> => {
   try {
+    const ai = getAi();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Análise técnica da habilidade de Calistenia: ${skillName}. Seja extremamente detalhado sobre a forma.`,
@@ -318,6 +324,7 @@ export const getSkillDetails = async (skillName: string): Promise<{ description:
  */
 export const searchFitnessData = async (query: string): Promise<{text: string, sources: any[]}> => {
   try {
+    const ai = getAi();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: query,
