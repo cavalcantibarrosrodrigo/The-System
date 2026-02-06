@@ -216,12 +216,36 @@ export const generateWorkout = async (
 
         if (response.text) {
           const cleanedText = cleanJson(response.text);
-          const data = JSON.parse(cleanedText);
+          let data;
+          try {
+             data = JSON.parse(cleanedText);
+          } catch(e) {
+             throw new Error("JSON Parse Error");
+          }
           
-          // STRICT VALIDATION: Check if data is valid before returning
-          if (!data || !Array.isArray(data.exercises) || data.exercises.length === 0) {
+          // STRICT VALIDATION & SANITIZATION
+          // Prevents crashes by ensuring structure is valid
+          if (!data || typeof data !== 'object') {
               throw new Error("Invalid AI Response structure");
           }
+
+          // Ensure exercises is array
+          if (!Array.isArray(data.exercises)) {
+              throw new Error("Missing exercises array");
+          }
+
+          // Filter out nulls or malformed exercises
+          data.exercises = data.exercises.filter((e: any) => e && typeof e === 'object' && e.name);
+
+          if (data.exercises.length === 0) {
+               throw new Error("No valid exercises returned");
+          }
+
+          // Ensure mobilityRoutine is array (safe fallback)
+          if (!Array.isArray(data.mobilityRoutine)) {
+             data.mobilityRoutine = [];
+          }
+          data.mobilityRoutine = data.mobilityRoutine.filter((m: any) => m && typeof m === 'object');
 
           return { 
               ...data, 

@@ -66,6 +66,7 @@ const DailyQuest: React.FC<Props> = ({ plan, onAccept, onCancel, onUpdatePlan })
   };
 
   const startRestTimer = (timeString: string, id: string) => {
+      if (!timeString) return;
       // Parse "60s", "90s", "2min"
       let seconds = 60;
       if(timeString.includes('min')) {
@@ -90,6 +91,9 @@ const DailyQuest: React.FC<Props> = ({ plan, onAccept, onCancel, onUpdatePlan })
       return () => clearInterval(interval);
   }, [activeTimer, timeLeft]);
 
+  // Defensive Check: Ensure plan exists before rendering
+  if (!plan) return null;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-md p-4">
       <div className="w-full max-w-4xl bg-black border-2 border-red-500 shadow-[0_0_50px_rgba(255,0,60,0.3)] relative overflow-hidden flex flex-col max-h-[90vh]">
@@ -98,7 +102,7 @@ const DailyQuest: React.FC<Props> = ({ plan, onAccept, onCancel, onUpdatePlan })
         <div className="bg-red-900/30 p-6 border-b border-red-500 flex justify-between items-center flex-shrink-0">
           <div>
              <div className="text-red-500 font-bold tracking-[0.2em] text-xs animate-pulse">ALARME DE QUEST</div>
-             <h2 className="text-2xl md:text-3xl font-black text-white mt-1 uppercase italic">{plan.title}</h2>
+             <h2 className="text-2xl md:text-3xl font-black text-white mt-1 uppercase italic">{plan.title || 'Missão Desconhecida'}</h2>
              {plan.suggestedSchedule && Array.isArray(plan.suggestedSchedule) && (
                  <div className="text-[10px] text-gray-400 mt-1 uppercase">
                      AGENDA: <span className="text-white font-bold">{plan.suggestedSchedule.join(', ')}</span>
@@ -113,10 +117,10 @@ const DailyQuest: React.FC<Props> = ({ plan, onAccept, onCancel, onUpdatePlan })
           
           <div className="flex gap-4 text-sm text-gray-400">
              <div className="flex items-center gap-1">
-                 <Clock size={16} className="text-cyan-400" /> {plan.estimatedDuration}
+                 <Clock size={16} className="text-cyan-400" /> {plan.estimatedDuration || '45 min'}
              </div>
              <div className="flex items-center gap-1">
-                 <Trophy size={16} className="text-yellow-400" /> {plan.xpReward} XP
+                 <Trophy size={16} className="text-yellow-400" /> {plan.xpReward || 0} XP
              </div>
           </div>
 
@@ -129,19 +133,24 @@ const DailyQuest: React.FC<Props> = ({ plan, onAccept, onCancel, onUpdatePlan })
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {plan.mobilityRoutine.map((mob, i) => {
                           const id = `mob-${i}`;
+                          // Safe access to properties
+                          const name = mob?.name || 'Mobilidade';
+                          const duration = mob?.duration || '1 min';
+                          const description = mob?.description || 'Prepare as articulações.';
+                          
                           return (
                               <div key={i} className="bg-cyan-900/10 border border-cyan-500/30 p-4 rounded relative overflow-hidden group hover:border-cyan-500 transition-colors">
-                                  <h4 className="font-bold text-white text-sm mb-1">{mob.name}</h4>
-                                  <div className="text-xs text-cyan-400 font-bold mb-2">{mob.duration}</div>
-                                  <p className="text-[10px] text-gray-400 leading-relaxed mb-2">{mob.description}</p>
+                                  <h4 className="font-bold text-white text-sm mb-1">{name}</h4>
+                                  <div className="text-xs text-cyan-400 font-bold mb-2">{duration}</div>
+                                  <p className="text-[10px] text-gray-400 leading-relaxed mb-2">{description}</p>
                                   
                                   {/* Mobility Visualizer */}
                                   <div className="mt-2 h-24 bg-black relative border border-cyan-900 rounded overflow-hidden">
                                       {exerciseImages[id] ? (
-                                           <img src={exerciseImages[id]} alt={mob.name} className="w-full h-full object-cover opacity-80" />
+                                           <img src={exerciseImages[id]} alt={name} className="w-full h-full object-cover opacity-80" />
                                       ) : (
                                           <button 
-                                            onClick={() => handleVisualize(mob.description, id)}
+                                            onClick={() => handleVisualize(description, id)}
                                             disabled={loadingImages[id]}
                                             className="w-full h-full flex flex-col items-center justify-center text-cyan-600 hover:text-cyan-400 transition-colors"
                                           >
@@ -165,6 +174,7 @@ const DailyQuest: React.FC<Props> = ({ plan, onAccept, onCancel, onUpdatePlan })
 
             {plan.exercises && plan.exercises.length > 0 ? (
                 plan.exercises.map((ex, idx) => {
+                    if (!ex) return null; // Defensive check
                     const id = `ex-${idx}`;
                     return (
                     <div key={idx} className="bg-gray-900/40 border border-gray-800 p-1 relative overflow-hidden group">
@@ -189,7 +199,7 @@ const DailyQuest: React.FC<Props> = ({ plan, onAccept, onCancel, onUpdatePlan })
                                         ex.difficulty === 'Hell' ? 'border-red-600 text-red-500' : 
                                         ex.difficulty === 'Hard' ? 'border-orange-600 text-orange-500' : 'border-green-600 text-green-500'
                                     }`}>
-                                        {ex.difficulty}
+                                        {ex.difficulty || 'Normal'}
                                     </span>
                                     {ex.grip && ex.grip !== 'N/A' && (
                                         <span className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider border border-cyan-600 text-cyan-400">
