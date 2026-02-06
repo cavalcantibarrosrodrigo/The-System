@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Player, MuscleGroup, WorkoutPlan, TrainingFrequency, WorkoutSession, VolumeType } from './types';
 import { INITIAL_PLAYER, XP_CURVE_MULTIPLIER, RANK_THRESHOLDS, WORKOUT_SPLITS, SPLIT_DETAILS, CLASSES, TITLES } from './constants';
 import StatusWindow from './components/StatusWindow';
@@ -37,7 +37,7 @@ const App: React.FC = () => {
   // View Toggle for Workout Tab
   const [workoutViewMode, setWorkoutViewMode] = useState<'map' | 'calendar'>('map');
 
-  // Auto-Login Effect
+  // Load User on Mount
   useEffect(() => {
     const lastUser = localStorage.getItem('system_last_user');
     if (lastUser) {
@@ -45,7 +45,6 @@ const App: React.FC = () => {
         if (dbString) {
             const db = JSON.parse(dbString);
             if (db[lastUser]) {
-                // Restore session
                 const loadedPlayer = {
                     ...INITIAL_PLAYER,
                     ...db[lastUser].data,
@@ -60,21 +59,23 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Save user specific data whenever relevant state changes
-  const saveUserData = (updatedPlayer: Player) => {
+  // Global Auto-Save Effect
+  // Saves whenever the 'player' object changes, ensuring persistence
+  useEffect(() => {
     if (!currentUser) return;
+    
     const dbString = localStorage.getItem('system_users_db');
     if (dbString) {
-      const db = JSON.parse(dbString);
-      if (db[currentUser]) {
-        db[currentUser].data = updatedPlayer;
-        localStorage.setItem('system_users_db', JSON.stringify(db));
-      }
+        const db = JSON.parse(dbString);
+        if (db[currentUser]) {
+            db[currentUser].data = player;
+            localStorage.setItem('system_users_db', JSON.stringify(db));
+        }
     }
-  };
+  }, [player, currentUser]);
+
 
   const handleLogin = (loadedPlayer: Player, username: string) => {
-    // Ensure new fields exist for legacy users
     const updatedPlayer = {
         ...INITIAL_PLAYER,
         ...loadedPlayer,
@@ -85,6 +86,14 @@ const App: React.FC = () => {
     setPlayer(updatedPlayer);
     setCurrentUser(username);
     localStorage.setItem('system_last_user', username);
+    
+    // Force immediate save to ensure DB consistency
+    const dbString = localStorage.getItem('system_users_db');
+    const db = dbString ? JSON.parse(dbString) : {};
+    if (db[username]) {
+        db[username].data = updatedPlayer;
+        localStorage.setItem('system_users_db', JSON.stringify(db));
+    }
   };
 
   const handleLogout = () => {
@@ -95,9 +104,9 @@ const App: React.FC = () => {
     localStorage.removeItem('system_last_user');
   };
 
-  // Level Up Logic & Persistence
+  // Level Up Logic
   useEffect(() => {
-    if (!currentUser) return; // Only run if logged in
+    if (!currentUser) return; 
 
     let updated = false;
     let newPlayer = { ...player };
@@ -107,8 +116,6 @@ const App: React.FC = () => {
       const remainingXp = newPlayer.xp - newPlayer.requiredXp;
       newPlayer.level += 1;
       newPlayer.xp = remainingXp;
-      
-      // Geometric Progression (PG) with Reason 1.5, rounded to nearest integer
       newPlayer.requiredXp = Math.round(newPlayer.requiredXp * XP_CURVE_MULTIPLIER);
 
       // Rank Up Logic
@@ -127,14 +134,14 @@ const App: React.FC = () => {
       newPlayer.stats.int += 1;
       newPlayer.stats.per += 1;
 
-      // Check for Class Upgrade based on Level
+      // Check for Class Upgrade
       const newClass = CLASSES.slice().reverse().find(c => newPlayer.level >= c.level);
       if (newClass && newClass.name !== newPlayer.job) {
          newPlayer.job = newClass.name;
          setNotification(`CLASSE ATUALIZADA: ${newClass.name}`);
       }
 
-       // Check for Title Upgrade based on Level
+       // Check for Title Upgrade
        const newTitle = TITLES.slice().reverse().find(t => newPlayer.level >= t.level);
        if (newTitle && newTitle.name !== newPlayer.title) {
           newPlayer.title = newTitle.name;
@@ -142,7 +149,7 @@ const App: React.FC = () => {
 
       // Check for Elite Mode Unlock
       if (newPlayer.level === 30) {
-        setNotification("MODO ELITE DESBLOQUEADO: TREINOS AVANÇADOS DISPONÍVEIS");
+        setNotification("MODO ELITE DESBLOQUEADO");
       } else {
         setNotification("LEVEL UP!");
       }
@@ -151,19 +158,10 @@ const App: React.FC = () => {
       setTimeout(() => setNotification(null), 4000);
     }
 
-    // Save if updated
     if (updated) {
       setPlayer(newPlayer);
-      saveUserData(newPlayer);
     }
   }, [player.xp, player.requiredXp, player.level, currentUser]);
-
-  // Save on any player change that isn't handled by the effect above
-  useEffect(() => {
-    if(currentUser) {
-      saveUserData(player);
-    }
-  }, [player.mp, player.unlockedSkills, activePlan, player.gender, player.workoutHistory, player.trainingFocus]);
 
 
   // Handlers
@@ -171,25 +169,30 @@ const App: React.FC = () => {
     if (selectedMuscles.length === 0) return;
     setIsGenerating(true);
     
-    // Determine frequency strategy to pass to AI
     const freqStrategy = preferredDays.length > 0 ? 'custom_split' : trainingFrequency;
 
-    // Pass gender, mode, volume and preferred days to generator
     const plan = await generateWorkout(
         selectedMuscles, 
         player.level, 
         freqStrategy, 
         player.gender,
-        player.trainingFocus, // Hypertrophy or Strength
-        volumeType, // Low, High or Auto
+        player.trainingFocus, 
+        volumeType, 
         preferredDays
     );
+    
     setIsGenerating(false);
+    
     if (plan) {
       setActivePlan(plan);
       setQuestAccepted(false);
+      // Notify if it's an offline plan
+      if (plan.id.startsWith('offline-')) {
+          setNotification("MODO OFFLINE ATIVADO: PROTOCOLO DE EMERGÊNCIA");
+          setTimeout(() => setNotification(null), 4000);
+      }
     } else {
-      setNotification("ERRO NO SISTEMA: FALHA AO GERAR QUEST");
+      setNotification("ERRO CRÍTICO NO SISTEMA");
       setTimeout(() => setNotification(null), 3000);
     }
   };
@@ -217,7 +220,7 @@ const App: React.FC = () => {
       ...prev,
       xp: prev.xp + activePlan.xpReward,
       mp: Math.min(prev.maxMp, prev.mp + 10),
-      workoutHistory: [session, ...prev.workoutHistory].slice(0, 50) // Keep last 50
+      workoutHistory: [session, ...prev.workoutHistory].slice(0, 50)
     }));
     
     setNotification(`TREINO CONCLUÍDO: +${activePlan.xpReward} XP`);
@@ -235,8 +238,6 @@ const App: React.FC = () => {
     
     if (splitName && WORKOUT_SPLITS[splitName]) {
         setSelectedMuscles(WORKOUT_SPLITS[splitName] as MuscleGroup[]);
-        
-        // Auto-select schedule based on split definition if available
         if (SPLIT_DETAILS[splitName] && SPLIT_DETAILS[splitName].defaultDays) {
             setPreferredDays(SPLIT_DETAILS[splitName].defaultDays);
         } else {
@@ -262,7 +263,7 @@ const App: React.FC = () => {
           trainingFocus: newMode,
           strengthCycleStart: newMode === 'strength' ? new Date().toISOString() : undefined
       }));
-      setNotification(newMode === 'strength' ? "MODO FORÇA ATIVADO (Ciclo 3 Semanas)" : "MODO HIPERTROFIA ATIVADO");
+      setNotification(newMode === 'strength' ? "MODO FORÇA ATIVADO" : "MODO HIPERTROFIA ATIVADO");
       setTimeout(() => setNotification(null), 3000);
   }
 
@@ -290,7 +291,6 @@ const App: React.FC = () => {
     return <AuthScreen onLogin={handleLogin} />;
   }
 
-  // Helper for Volume Description
   const getVolumeDescription = (v: VolumeType) => {
       switch(v) {
           case 'low_volume': return "Intensidade Brutal. Poucas séries, carga máxima.";
@@ -353,7 +353,7 @@ const App: React.FC = () => {
          {/* Top Bar (Mobile/Desktop) */}
          <div className="h-16 border-b border-gray-800 flex items-center justify-between px-6 bg-black/80 backdrop-blur z-10">
              <h1 className="text-xl font-bold tracking-[0.2em] italic text-white system-font">
-                THE SYSTEM <span className="text-xs text-gray-500 not-italic">v3.4.0-OPTM</span>
+                THE SYSTEM <span className="text-xs text-gray-500 not-italic">v3.4.1-STABLE</span>
              </h1>
              <div className="flex items-center gap-4">
                  {player.level >= 30 && (
@@ -464,7 +464,7 @@ const App: React.FC = () => {
                                 {player.trainingFocus === 'strength' ? 'Modo Força (Ativo)' : 'Ativar Modo Força'}
                             </button>
 
-                            {/* Volume Selector - NEW */}
+                            {/* Volume Selector */}
                             <div className="mb-4">
                                 <label className="text-xs text-gray-400 mb-2 block uppercase tracking-wider flex items-center gap-2">
                                     <BarChart3 size={14} /> Densidade Volumétrica
@@ -524,7 +524,7 @@ const App: React.FC = () => {
                                 </div>
                             </div>
 
-                             {/* SCHEDULE SELECTION - NEW LOGIC */}
+                             {/* SCHEDULE SELECTION */}
                             {selectedSplit && (
                                 <div className="mb-4">
                                      <div className="mt-3 p-3 bg-gray-900/50 border border-red-900/50 animate-in slide-in-from-top-2">

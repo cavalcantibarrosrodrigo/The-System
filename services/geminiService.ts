@@ -4,24 +4,32 @@ import { WorkoutPlan, MuscleGroup, TrainingFrequency, Exercise, VolumeType } fro
 
 // Helper to safely access API KEY
 const getApiKey = () => {
-    // Try process.env first (Standard/Netlify)
+    // 1. Try LocalStorage (Manual Override for users)
+    if (typeof window !== 'undefined') {
+        const localKey = localStorage.getItem('sys_api_key');
+        if (localKey) return localKey;
+    }
+
+    // 2. Try process.env (Standard/Netlify)
     if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
         return process.env.API_KEY;
     }
-    // Try Vite env
+    
+    // 3. Try Vite env
     // @ts-ignore
     if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_KEY) {
         // @ts-ignore
         return import.meta.env.VITE_API_KEY;
     }
-    // Fallback or empty (will likely fail if not replaced during build)
+    
     return '';
 };
 
 const getAi = () => {
     const key = getApiKey();
     if(!key) {
-        console.error("CRITICAL: API Key not found. Please check environment variables.");
+        console.warn("SYSTEM WARNING: API Key not detected. Switching to Offline/Fallback protocols.");
+        return null;
     }
     return new GoogleGenAI({ apiKey: key });
 };
@@ -39,6 +47,65 @@ const cleanJson = (text: string): string => {
     return cleaned.trim();
 };
 
+// --- OFFLINE FALLBACK GENERATOR ---
+const generateOfflineWorkout = (
+    muscles: MuscleGroup[], 
+    level: number, 
+    mode: 'hypertrophy' | 'strength'
+): WorkoutPlan => {
+    const isStrength = mode === 'strength';
+    const exercises: Exercise[] = [];
+
+    muscles.forEach((muscle, index) => {
+        let name = "Exercício Padrão";
+        let sets = isStrength ? 5 : 4;
+        let reps = isStrength ? "3-5" : "8-12";
+        
+        switch(muscle) {
+            case 'chest': name = index === 0 ? "Supino Reto (Barra)" : "Crucifixo Inclinado"; break;
+            case 'back': name = index === 0 ? "Levantamento Terra" : "Puxada Frontal"; break;
+            case 'legs': name = index === 0 ? "Agachamento Livre" : "Leg Press 45"; break;
+            case 'shoulders': name = "Desenvolvimento Militar"; break;
+            case 'arms': name = "Rosca Direta + Tríceps Testa"; break;
+            case 'core': name = "Prancha Abdominal"; reps = "Falha"; break;
+        }
+
+        exercises.push({
+            name: `${name} [OFFLINE]`,
+            sets: sets,
+            reps: reps,
+            restTime: isStrength ? "3min" : "90s",
+            difficulty: "Normal",
+            technicalTips: "Conexão mente-músculo. Controle a fase excêntrica.",
+            notes: "Protocolo de emergência ativado.",
+            grip: "Normal"
+        });
+    });
+
+    return {
+        id: `offline-${Date.now()}`,
+        title: `TREINO DE EMERGÊNCIA: ${muscles.join(' + ').toUpperCase()}`,
+        targetMuscles: muscles,
+        xpReward: 150 + (level * 10),
+        estimatedDuration: "45-60 min",
+        mobilityRoutine: [
+            {
+                name: "Rotação Articular",
+                duration: "1 min",
+                description: "Gire as articulações alvo suavemente para lubrificação.",
+                benefit: "Preparação articular."
+            },
+            {
+                name: "Alongamento Dinâmico",
+                duration: "2 min",
+                description: "Movimentos balísticos controlados.",
+                benefit: "Ativação muscular."
+            }
+        ],
+        exercises: exercises
+    };
+};
+
 /**
  * Generates a structured workout plan.
  */
@@ -53,6 +120,12 @@ export const generateWorkout = async (
 ): Promise<WorkoutPlan | null> => {
   try {
     const ai = getAi();
+    
+    // FALLBACK IF NO AI CLIENT
+    if (!ai) {
+        return generateOfflineWorkout(muscles, level, mode);
+    }
+
     let freqText = "";
     switch (frequency) {
         case 'every_other_day': freqText = "Dia Sim, Dia Não."; break;
@@ -67,103 +140,101 @@ export const generateWorkout = async (
 
     let systemInstruction = SYSTEM_PROMPTS.WORKOUT_GEN;
     let modeText = "Foco em HIPERTROFIA.";
-    
-    // Volume Logic
     let volumeInstruction = "";
+
     switch(volumeType) {
-        case 'low_volume':
-            volumeInstruction = "BAIXO VOLUME (Low Volume / HIT). Mínimo de séries, falha total.";
-            break;
-        case 'high_volume':
-            volumeInstruction = "ALTO VOLUME (High Volume). Maior número de séries, pump.";
-            break;
-        case 'system_auto':
-            volumeInstruction = "VOLUME OTIMIZADO (Equilíbrio do Sistema).";
-            break;
+        case 'low_volume': volumeInstruction = "BAIXO VOLUME (HIT)."; break;
+        case 'high_volume': volumeInstruction = "ALTO VOLUME (Pump)."; break;
+        case 'system_auto': volumeInstruction = "VOLUME OTIMIZADO."; break;
     }
 
     if (mode === 'strength') {
         systemInstruction = SYSTEM_PROMPTS.WORKOUT_STRENGTH;
-        modeText = "MODO FORÇA (STRENGTH MODE). Ciclo de 3 semanas.";
-        volumeInstruction += " (Adapte para Força).";
+        modeText = "MODO FORÇA (STRENGTH MODE).";
     }
 
     const prompt = `
     Crie um treino OTIMIZADO para Nível ${level}.
-    Gênero: ${gender === 'female' ? 'FEMININO (Foco Inferiores/Definição)' : 'MASCULINO'}.
+    Gênero: ${gender === 'female' ? 'FEMININO' : 'MASCULINO'}.
     Alvo: ${muscles.join(', ')}.
-    Agenda: ${freqText}
     Modo: ${modeText}
     Volume: ${volumeInstruction}
     
-    INSTRUÇÕES ESPECIAIS:
-    1. Fase 1: MOBILIDADE (Obrigatória). Gere 3 exercícios de mobilidade específicos para os músculos alvo. Devem ser rápidos e preparatórios.
-    2. Fase 2: MUSCULAÇÃO. Varie os exercícios (Evite repetir apenas o básico se houver variações melhores para o nível).
-    3. Descrição da Mobilidade: Deve ser visual e fácil de entender para gerar imagem depois.
+    INSTRUÇÕES:
+    1. Fase 1: MOBILIDADE (3 exercícios).
+    2. Fase 2: MUSCULAÇÃO.
     `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: prompt,
-      config: {
-        systemInstruction: systemInstruction,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            title: { type: Type.STRING },
-            xpReward: { type: Type.NUMBER },
-            estimatedDuration: { type: Type.STRING },
-            mobilityRoutine: {
-                type: Type.ARRAY,
-                items: {
+    try {
+        const response = await ai.models.generateContent({
+          model: 'gemini-3-flash-preview',
+          contents: prompt,
+          config: {
+            systemInstruction: systemInstruction,
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                title: { type: Type.STRING },
+                xpReward: { type: Type.NUMBER },
+                estimatedDuration: { type: Type.STRING },
+                mobilityRoutine: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            name: { type: Type.STRING },
+                            duration: { type: Type.STRING },
+                            description: { type: Type.STRING },
+                            benefit: { type: Type.STRING }
+                        },
+                        required: ["name", "duration", "description", "benefit"]
+                    }
+                },
+                exercises: {
+                  type: Type.ARRAY,
+                  items: {
                     type: Type.OBJECT,
                     properties: {
-                        name: { type: Type.STRING },
-                        duration: { type: Type.STRING },
-                        description: { type: Type.STRING },
-                        benefit: { type: Type.STRING }
+                      name: { type: Type.STRING },
+                      sets: { type: Type.NUMBER },
+                      reps: { type: Type.STRING },
+                      restTime: { type: Type.STRING },
+                      grip: { type: Type.STRING },
+                      notes: { type: Type.STRING },
+                      technicalTips: { type: Type.STRING },
+                      difficulty: { type: Type.STRING, enum: ["Normal", "Hard", "Hell"] }
                     },
-                    required: ["name", "duration", "description", "benefit"]
+                    required: ["name", "sets", "reps", "restTime", "difficulty", "technicalTips", "grip"]
+                  }
                 }
-            },
-            exercises: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  name: { type: Type.STRING },
-                  sets: { type: Type.NUMBER },
-                  reps: { type: Type.STRING },
-                  restTime: { type: Type.STRING },
-                  grip: { type: Type.STRING },
-                  notes: { type: Type.STRING },
-                  technicalTips: { type: Type.STRING },
-                  difficulty: { type: Type.STRING, enum: ["Normal", "Hard", "Hell"] }
-                },
-                required: ["name", "sets", "reps", "restTime", "difficulty", "technicalTips", "grip"]
-              }
+              },
+              required: ["title", "xpReward", "estimatedDuration", "mobilityRoutine", "exercises"]
             }
-          },
-          required: ["title", "xpReward", "estimatedDuration", "mobilityRoutine", "exercises"]
-        }
-      }
-    });
+          }
+        });
 
-    if (response.text) {
-      const cleanedText = cleanJson(response.text);
-      const data = JSON.parse(cleanedText);
-      return { 
-          ...data, 
-          id: Date.now().toString(), 
-          targetMuscles: muscles,
-          suggestedSchedule: preferredDays 
-      };
+        if (response.text) {
+          const cleanedText = cleanJson(response.text);
+          const data = JSON.parse(cleanedText);
+          return { 
+              ...data, 
+              id: Date.now().toString(), 
+              targetMuscles: muscles,
+              suggestedSchedule: preferredDays 
+          };
+        }
+    } catch (apiError) {
+        console.error("AI API Error:", apiError);
+        // Fallback on API failure
+        return generateOfflineWorkout(muscles, level, mode);
     }
-    return null;
+    
+    return generateOfflineWorkout(muscles, level, mode);
+
   } catch (error) {
     console.error("System Error [Generation]:", error);
-    return null;
+    return generateOfflineWorkout(muscles, level, mode);
   }
 };
 
@@ -176,11 +247,9 @@ export const getExerciseAlternatives = async (
 ): Promise<Exercise[]> => {
     try {
         const ai = getAi();
-        const prompt = `
-        Substitua o exercício "${currentExercise}" (Alvo: ${muscle}).
-        Gere 4 alternativas biomecanicamente semelhantes.
-        Retorne JSON.
-        `;
+        if (!ai) return [];
+
+        const prompt = `Substitua "${currentExercise}" (${muscle}). 4 opções. JSON.`;
 
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
@@ -230,15 +299,15 @@ export const getExerciseAlternatives = async (
 export const visualizeGoal = async (prompt: string): Promise<string | null> => {
   try {
     const ai = getAi();
-    // Enhanced prompt for two-state visualization
+    if (!ai) return null;
+
     const enhancedPrompt = `
       Technical fitness illustration of: ${prompt}.
       Layout: Split-panel composition (Side-by-side).
-      Left Panel: The STARTING position of the exercise/stretch.
-      Right Panel: The ENDING position (peak contraction/extension) of the exercise/stretch.
-      Style: "Solo Leveling" System Window UI holographic blueprint. Dark background, Neon Blue wireframe character.
-      Details: Muscle groups worked highlighted in RED on both panels.
-      Accuracy: Anatomically correct posture.
+      Left Panel: The STARTING position.
+      Right Panel: The ENDING position.
+      Style: "Solo Leveling" System UI holographic blueprint. Dark background, Neon Blue wireframe.
+      Details: Muscle groups highlighted RED.
     `;
 
     const response = await ai.models.generateContent({
@@ -253,7 +322,6 @@ export const visualizeGoal = async (prompt: string): Promise<string | null> => {
       }
     });
     
-    // Find image part
     for (const part of response.candidates?.[0]?.content?.parts || []) {
       if (part.inlineData) {
         return `data:image/png;base64,${part.inlineData.data}`;
@@ -272,6 +340,8 @@ export const visualizeGoal = async (prompt: string): Promise<string | null> => {
 export const chatWithSystem = async (message: string, history: {role: string, parts: {text: string}[]}[] = []): Promise<string> => {
   try {
     const ai = getAi();
+    if (!ai) return "SISTEMA OFFLINE. Verifique a conexão com a API.";
+
     const chat = ai.chats.create({
       model: 'gemini-3-pro-preview',
       config: {
@@ -281,7 +351,7 @@ export const chatWithSystem = async (message: string, history: {role: string, pa
     });
 
     const result = await chat.sendMessage({ message });
-    return result.text || "Sistema Offline. Conexão interrompida.";
+    return result.text || "Sem resposta do Sistema.";
   } catch (error) {
     console.error("System Error [Chat]:", error);
     return "Erro: O Sistema não pode processar a solicitação.";
@@ -294,6 +364,8 @@ export const chatWithSystem = async (message: string, history: {role: string, pa
 export const analyzeImage = async (base64Image: string, promptText: string): Promise<string> => {
   try {
     const ai = getAi();
+    if (!ai) return "SISTEMA OFFLINE. Visão indisponível.";
+
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: {
@@ -308,7 +380,7 @@ export const analyzeImage = async (base64Image: string, promptText: string): Pro
         ]
       },
       config: {
-        systemInstruction: "Você é um analista de físico e postura de elite dentro do 'Sistema'. Analise a imagem com honestidade brutal e forneça ajustes de status ou correções de postura. Responda em Português."
+        systemInstruction: "Analista de físico e postura de elite."
       }
     });
     return response.text || "Falha na Análise.";
@@ -324,9 +396,11 @@ export const analyzeImage = async (base64Image: string, promptText: string): Pro
 export const getSkillDetails = async (skillName: string): Promise<{ description: string, execution: string[], technicalTips: string } | null> => {
   try {
     const ai = getAi();
+    if (!ai) return null;
+
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Análise técnica da habilidade de Calistenia: ${skillName}. Seja extremamente detalhado sobre a forma.`,
+      contents: `Análise técnica: ${skillName}.`,
       config: {
         systemInstruction: SYSTEM_PROMPTS.SKILL_ANALYSIS,
         responseMimeType: "application/json",
@@ -359,6 +433,8 @@ export const getSkillDetails = async (skillName: string): Promise<{ description:
 export const searchFitnessData = async (query: string): Promise<{text: string, sources: any[]}> => {
   try {
     const ai = getAi();
+    if (!ai) return { text: "SISTEMA OFFLINE.", sources: [] };
+
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: query,
@@ -370,7 +446,6 @@ export const searchFitnessData = async (query: string): Promise<{text: string, s
     const text = response.text || "Nenhum dado encontrado.";
     const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
     
-    // Extract web sources
     const sources = chunks.filter((c: any) => c.web).map((c: any) => ({
       title: c.web.title,
       uri: c.web.uri
