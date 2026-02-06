@@ -37,7 +37,30 @@ const App: React.FC = () => {
   // View Toggle for Workout Tab
   const [workoutViewMode, setWorkoutViewMode] = useState<'map' | 'calendar'>('map');
 
-  // Load user specific data whenever currentUser changes
+  // Auto-Login Effect
+  useEffect(() => {
+    const lastUser = localStorage.getItem('system_last_user');
+    if (lastUser) {
+        const dbString = localStorage.getItem('system_users_db');
+        if (dbString) {
+            const db = JSON.parse(dbString);
+            if (db[lastUser]) {
+                // Restore session
+                const loadedPlayer = {
+                    ...INITIAL_PLAYER,
+                    ...db[lastUser].data,
+                    gender: db[lastUser].data.gender || 'male',
+                    workoutHistory: db[lastUser].data.workoutHistory || [],
+                    trainingFocus: db[lastUser].data.trainingFocus || 'hypertrophy'
+                };
+                setPlayer(loadedPlayer);
+                setCurrentUser(lastUser);
+            }
+        }
+    }
+  }, []);
+
+  // Save user specific data whenever relevant state changes
   const saveUserData = (updatedPlayer: Player) => {
     if (!currentUser) return;
     const dbString = localStorage.getItem('system_users_db');
@@ -61,6 +84,7 @@ const App: React.FC = () => {
     };
     setPlayer(updatedPlayer);
     setCurrentUser(username);
+    localStorage.setItem('system_last_user', username);
   };
 
   const handleLogout = () => {
@@ -68,6 +92,7 @@ const App: React.FC = () => {
     setPlayer(INITIAL_PLAYER);
     setActivePlan(null);
     setQuestAccepted(false);
+    localStorage.removeItem('system_last_user');
   };
 
   // Level Up Logic & Persistence

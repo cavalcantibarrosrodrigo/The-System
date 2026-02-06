@@ -68,6 +68,10 @@
   }
 }
 </script>
+<script>
+  // Polyfill for process.env to prevent ReferenceError in browser
+  window.process = window.process || { env: {} };
+</script>
 </head>
   <body>
     <div id="root"></div>

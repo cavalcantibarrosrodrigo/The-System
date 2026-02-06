@@ -2,13 +2,45 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { SYSTEM_PROMPTS } from "../constants";
 import { WorkoutPlan, MuscleGroup, TrainingFrequency, Exercise, VolumeType } from "../types";
 
-// Lazy Initialize Gemini Client to prevent crash on load if env is missing
-const getAi = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Helper to safely access API KEY
+const getApiKey = () => {
+    // Try process.env first (Standard/Netlify)
+    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+        return process.env.API_KEY;
+    }
+    // Try Vite env
+    // @ts-ignore
+    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_KEY) {
+        // @ts-ignore
+        return import.meta.env.VITE_API_KEY;
+    }
+    // Fallback or empty (will likely fail if not replaced during build)
+    return '';
+};
+
+const getAi = () => {
+    const key = getApiKey();
+    if(!key) {
+        console.error("CRITICAL: API Key not found. Please check environment variables.");
+    }
+    return new GoogleGenAI({ apiKey: key });
+};
+
+// Helper to clean JSON string from Markdown code blocks
+const cleanJson = (text: string): string => {
+    if (!text) return "{}";
+    let cleaned = text.trim();
+    // Remove ```json and ```
+    if (cleaned.startsWith("```json")) {
+        cleaned = cleaned.replace(/^```json/, "").replace(/```$/, "");
+    } else if (cleaned.startsWith("```")) {
+        cleaned = cleaned.replace(/^```/, "").replace(/```$/, "");
+    }
+    return cleaned.trim();
+};
 
 /**
  * Generates a structured workout plan.
- * Handles Hypertrophy, Strength Mode, Volume preferences, and Preferred Days.
- * Now includes Mobility Routine and Variety logic.
  */
 export const generateWorkout = async (
   muscles: MuscleGroup[],
@@ -119,7 +151,8 @@ export const generateWorkout = async (
     });
 
     if (response.text) {
-      const data = JSON.parse(response.text);
+      const cleanedText = cleanJson(response.text);
+      const data = JSON.parse(cleanedText);
       return { 
           ...data, 
           id: Date.now().toString(), 
@@ -180,7 +213,8 @@ export const getExerciseAlternatives = async (
         });
 
         if (response.text) {
-             const data = JSON.parse(response.text);
+             const cleanedText = cleanJson(response.text);
+             const data = JSON.parse(cleanedText);
              return data.alternatives || [];
         }
         return [];
@@ -192,7 +226,6 @@ export const getExerciseAlternatives = async (
 
 /**
  * Generate a visualization of a goal or exercise.
- * Updated to show two-state (start/end) positions.
  */
 export const visualizeGoal = async (prompt: string): Promise<string | null> => {
   try {
@@ -234,7 +267,7 @@ export const visualizeGoal = async (prompt: string): Promise<string | null> => {
 };
 
 /**
- * Chat with the System Intelligence (Pro Model for reasoning).
+ * Chat with the System Intelligence.
  */
 export const chatWithSystem = async (message: string, history: {role: string, parts: {text: string}[]}[] = []): Promise<string> => {
   try {
@@ -256,7 +289,7 @@ export const chatWithSystem = async (message: string, history: {role: string, pa
 };
 
 /**
- * Analyze an image (Physique or Equipment) using Vision (Pro Model).
+ * Analyze an image (Physique or Equipment).
  */
 export const analyzeImage = async (base64Image: string, promptText: string): Promise<string> => {
   try {
@@ -310,7 +343,8 @@ export const getSkillDetails = async (skillName: string): Promise<{ description:
     });
 
     if (response.text) {
-      return JSON.parse(response.text);
+      const cleaned = cleanJson(response.text);
+      return JSON.parse(cleaned);
     }
     return null;
   } catch (error) {
