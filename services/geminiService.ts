@@ -217,6 +217,12 @@ export const generateWorkout = async (
         if (response.text) {
           const cleanedText = cleanJson(response.text);
           const data = JSON.parse(cleanedText);
+          
+          // STRICT VALIDATION: Check if data is valid before returning
+          if (!data || !Array.isArray(data.exercises) || data.exercises.length === 0) {
+              throw new Error("Invalid AI Response structure");
+          }
+
           return { 
               ...data, 
               id: Date.now().toString(), 
@@ -225,7 +231,7 @@ export const generateWorkout = async (
           };
         }
     } catch (apiError) {
-        console.error("AI API Error:", apiError);
+        console.error("AI API Error (Fallback triggered):", apiError);
         // Fallback on API failure
         return generateOfflineWorkout(muscles, level, mode);
     }

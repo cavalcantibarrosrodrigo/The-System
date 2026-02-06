@@ -99,7 +99,7 @@ const DailyQuest: React.FC<Props> = ({ plan, onAccept, onCancel, onUpdatePlan })
           <div>
              <div className="text-red-500 font-bold tracking-[0.2em] text-xs animate-pulse">ALARME DE QUEST</div>
              <h2 className="text-2xl md:text-3xl font-black text-white mt-1 uppercase italic">{plan.title}</h2>
-             {plan.suggestedSchedule && (
+             {plan.suggestedSchedule && Array.isArray(plan.suggestedSchedule) && (
                  <div className="text-[10px] text-gray-400 mt-1 uppercase">
                      AGENDA: <span className="text-white font-bold">{plan.suggestedSchedule.join(', ')}</span>
                  </div>
@@ -163,136 +163,142 @@ const DailyQuest: React.FC<Props> = ({ plan, onAccept, onCancel, onUpdatePlan })
                  <div className="w-2 h-2 bg-red-500 animate-pulse"></div> FASE 2: PROTOCOLO DE HIPERTROFIA
             </div>
 
-            {plan.exercises.map((ex, idx) => {
-                const id = `ex-${idx}`;
-                return (
-                <div key={idx} className="bg-gray-900/40 border border-gray-800 p-1 relative overflow-hidden group">
-                     {/* Active Marker */}
-                    <div className="absolute top-0 left-0 w-1 h-full bg-red-600 z-10"></div>
+            {plan.exercises && plan.exercises.length > 0 ? (
+                plan.exercises.map((ex, idx) => {
+                    const id = `ex-${idx}`;
+                    return (
+                    <div key={idx} className="bg-gray-900/40 border border-gray-800 p-1 relative overflow-hidden group">
+                        {/* Active Marker */}
+                        <div className="absolute top-0 left-0 w-1 h-full bg-red-600 z-10"></div>
 
-                    <div className="p-4 pl-6 relative z-0">
-                         {/* Title Row */}
-                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-3 gap-2">
-                             <div className="flex items-center gap-3">
-                                <h4 className="font-bold text-xl text-white uppercase tracking-wider">{ex.name}</h4>
-                                <button 
-                                    onClick={() => handleSwapRequest(idx, ex.name)}
-                                    className="p-1 text-gray-500 hover:text-cyan-400 transition-colors"
-                                    title="Trocar Exercício por Variação"
-                                >
-                                    <RefreshCw size={14} />
-                                </button>
-                             </div>
-                             <div className="flex items-center gap-2">
-                                <span className={`px-2 py-1 text-[10px] font-bold uppercase tracking-wider border ${
-                                    ex.difficulty === 'Hell' ? 'border-red-600 text-red-500' : 
-                                    ex.difficulty === 'Hard' ? 'border-orange-600 text-orange-500' : 'border-green-600 text-green-500'
-                                }`}>
-                                    {ex.difficulty}
-                                </span>
-                                {ex.grip && ex.grip !== 'N/A' && (
-                                    <span className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider border border-cyan-600 text-cyan-400">
-                                        PEGADA: {ex.grip}
+                        <div className="p-4 pl-6 relative z-0">
+                            {/* Title Row */}
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-3 gap-2">
+                                <div className="flex items-center gap-3">
+                                    <h4 className="font-bold text-xl text-white uppercase tracking-wider">{ex.name}</h4>
+                                    <button 
+                                        onClick={() => handleSwapRequest(idx, ex.name)}
+                                        className="p-1 text-gray-500 hover:text-cyan-400 transition-colors"
+                                        title="Trocar Exercício por Variação"
+                                    >
+                                        <RefreshCw size={14} />
+                                    </button>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className={`px-2 py-1 text-[10px] font-bold uppercase tracking-wider border ${
+                                        ex.difficulty === 'Hell' ? 'border-red-600 text-red-500' : 
+                                        ex.difficulty === 'Hard' ? 'border-orange-600 text-orange-500' : 'border-green-600 text-green-500'
+                                    }`}>
+                                        {ex.difficulty}
                                     </span>
-                                )}
-                             </div>
-                        </div>
-
-                        {/* Notes Quote */}
-                        {ex.notes && (
-                            <div className="mb-4 pl-4 border-l-2 border-gray-700 italic text-gray-400 text-sm font-mono">
-                                " {ex.notes} "
+                                    {ex.grip && ex.grip !== 'N/A' && (
+                                        <span className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider border border-cyan-600 text-cyan-400">
+                                            PEGADA: {ex.grip}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
-                        )}
 
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                            {/* Technical Analysis Box (Left) */}
-                            {ex.technicalTips && (
-                                <div className="relative border-2 border-dashed border-cyan-900/60 bg-black/20 p-4 rounded-sm flex flex-col justify-between group-hover:border-cyan-500/30 transition-colors h-full">
-                                    <div>
-                                        <div className="flex items-center gap-2 mb-3 text-cyan-400 font-bold uppercase tracking-widest text-[10px]">
-                                            <BrainCircuit size={14} /> Análise de Técnica
-                                        </div>
-                                        <p className="text-sm text-gray-300 font-mono leading-relaxed relative z-10 text-justify">
-                                            {ex.technicalTips}
-                                        </p>
-                                    </div>
-                                    <div className="absolute bottom-1 right-1 opacity-5 text-cyan-500 pointer-events-none">
-                                        <BrainCircuit size={80} />
-                                    </div>
+                            {/* Notes Quote */}
+                            {ex.notes && (
+                                <div className="mb-4 pl-4 border-l-2 border-gray-700 italic text-gray-400 text-sm font-mono">
+                                    " {ex.notes} "
                                 </div>
                             )}
 
-                             {/* Visual & Stats (Right) */}
-                            <div className="flex flex-col gap-2 h-full">
-                                 {/* Holographic Video Player Simulation */}
-                                <div className="flex-1 min-h-[160px] w-full bg-black border border-cyan-900/50 relative group/video overflow-hidden rounded-sm">
-                                    {exerciseImages[id] ? (
-                                        <div className="w-full h-full relative">
-                                            {/* Fake Scanlines */}
-                                            <div className="absolute inset-0 z-10 bg-[linear-gradient(transparent_50%,rgba(0,243,255,0.1)_50%)] bg-[length:100%_4px] pointer-events-none"></div>
-                                            <div className="absolute inset-0 z-10 animate-[scan_3s_linear_infinite] bg-gradient-to-b from-transparent via-cyan-400/20 to-transparent h-[20%] w-full pointer-events-none"></div>
-                                            
-                                            <img src={exerciseImages[id]} alt={ex.name} className="w-full h-full object-cover opacity-80 filter contrast-125 brightness-110" />
-                                            
-                                            {/* HUD Elements */}
-                                            <div className="absolute top-2 left-2 text-[8px] text-cyan-400 font-mono border border-cyan-500/50 px-1 bg-black/50">
-                                                REC /// MODEL_0{idx + 1}
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                {/* Technical Analysis Box (Left) */}
+                                {ex.technicalTips && (
+                                    <div className="relative border-2 border-dashed border-cyan-900/60 bg-black/20 p-4 rounded-sm flex flex-col justify-between group-hover:border-cyan-500/30 transition-colors h-full">
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-3 text-cyan-400 font-bold uppercase tracking-widest text-[10px]">
+                                                <BrainCircuit size={14} /> Análise de Técnica
                                             </div>
-                                            <div className="absolute bottom-2 left-2 right-2 h-1 bg-gray-800">
-                                                <div className="h-full bg-cyan-500 w-1/3 animate-pulse"></div>
-                                            </div>
-                                            <div className="absolute bottom-4 right-2 text-cyan-400 animate-pulse">
-                                                <Play size={16} fill="currentColor" />
-                                            </div>
+                                            <p className="text-sm text-gray-300 font-mono leading-relaxed relative z-10 text-justify">
+                                                {ex.technicalTips}
+                                            </p>
                                         </div>
-                                    ) : (
-                                        <div className="w-full h-full flex flex-col items-center justify-center bg-gray-900/20">
-                                            <button 
-                                                onClick={() => handleVisualize(ex.name, id)}
-                                                disabled={loadingImages[id]}
-                                                className="text-xs flex flex-col items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors disabled:opacity-50"
-                                            >
-                                                {loadingImages[id] ? <Loader2 size={32} className="animate-spin" /> : <BrainCircuit size={32} />}
-                                                <span className="uppercase tracking-wider font-bold text-[10px]">
-                                                    {loadingImages[id] ? "MATERIALIZANDO..." : "CARREGAR SIMULAÇÃO"}
-                                                </span>
-                                            </button>
+                                        <div className="absolute bottom-1 right-1 opacity-5 text-cyan-500 pointer-events-none">
+                                            <BrainCircuit size={80} />
                                         </div>
-                                    )}
-                                </div>
+                                    </div>
+                                )}
 
-                                {/* Stats Bar */}
-                                <div className="grid grid-cols-3 gap-1 h-12">
-                                     <div className="bg-gray-900/80 flex flex-col items-center justify-center border border-gray-800">
-                                         <span className="text-[8px] text-gray-500 uppercase">Sets</span>
-                                         <span className="text-cyan-400 font-bold">{ex.sets}</span>
-                                     </div>
-                                     <div className="bg-gray-900/80 flex flex-col items-center justify-center border border-gray-800">
-                                         <span className="text-[8px] text-gray-500 uppercase">Reps</span>
-                                         <span className="text-cyan-400 font-bold">{ex.reps}</span>
-                                     </div>
-                                     <div 
-                                        className="bg-gray-900/80 flex flex-col items-center justify-center border border-gray-800 cursor-pointer hover:bg-gray-800 transition-colors"
-                                        onClick={() => startRestTimer(ex.restTime, id)}
-                                     >
-                                        {activeTimer === id ? (
-                                             <span className="text-red-500 font-bold animate-pulse">{timeLeft}s</span>
-                                        ) : (
-                                             <>
-                                                <span className="text-[8px] text-gray-500 uppercase">Descanso</span>
-                                                <div className="flex items-center gap-1 text-yellow-400 font-bold text-xs">
-                                                     {ex.restTime} <Timer size={10} />
+                                {/* Visual & Stats (Right) */}
+                                <div className="flex flex-col gap-2 h-full">
+                                    {/* Holographic Video Player Simulation */}
+                                    <div className="flex-1 min-h-[160px] w-full bg-black border border-cyan-900/50 relative group/video overflow-hidden rounded-sm">
+                                        {exerciseImages[id] ? (
+                                            <div className="w-full h-full relative">
+                                                {/* Fake Scanlines */}
+                                                <div className="absolute inset-0 z-10 bg-[linear-gradient(transparent_50%,rgba(0,243,255,0.1)_50%)] bg-[length:100%_4px] pointer-events-none"></div>
+                                                <div className="absolute inset-0 z-10 animate-[scan_3s_linear_infinite] bg-gradient-to-b from-transparent via-cyan-400/20 to-transparent h-[20%] w-full pointer-events-none"></div>
+                                                
+                                                <img src={exerciseImages[id]} alt={ex.name} className="w-full h-full object-cover opacity-80 filter contrast-125 brightness-110" />
+                                                
+                                                {/* HUD Elements */}
+                                                <div className="absolute top-2 left-2 text-[8px] text-cyan-400 font-mono border border-cyan-500/50 px-1 bg-black/50">
+                                                    REC /// MODEL_0{idx + 1}
                                                 </div>
-                                             </>
+                                                <div className="absolute bottom-2 left-2 right-2 h-1 bg-gray-800">
+                                                    <div className="h-full bg-cyan-500 w-1/3 animate-pulse"></div>
+                                                </div>
+                                                <div className="absolute bottom-4 right-2 text-cyan-400 animate-pulse">
+                                                    <Play size={16} fill="currentColor" />
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="w-full h-full flex flex-col items-center justify-center bg-gray-900/20">
+                                                <button 
+                                                    onClick={() => handleVisualize(ex.name, id)}
+                                                    disabled={loadingImages[id]}
+                                                    className="text-xs flex flex-col items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors disabled:opacity-50"
+                                                >
+                                                    {loadingImages[id] ? <Loader2 size={32} className="animate-spin" /> : <BrainCircuit size={32} />}
+                                                    <span className="uppercase tracking-wider font-bold text-[10px]">
+                                                        {loadingImages[id] ? "MATERIALIZANDO..." : "CARREGAR SIMULAÇÃO"}
+                                                    </span>
+                                                </button>
+                                            </div>
                                         )}
-                                     </div>
+                                    </div>
+
+                                    {/* Stats Bar */}
+                                    <div className="grid grid-cols-3 gap-1 h-12">
+                                        <div className="bg-gray-900/80 flex flex-col items-center justify-center border border-gray-800">
+                                            <span className="text-[8px] text-gray-500 uppercase">Sets</span>
+                                            <span className="text-cyan-400 font-bold">{ex.sets}</span>
+                                        </div>
+                                        <div className="bg-gray-900/80 flex flex-col items-center justify-center border border-gray-800">
+                                            <span className="text-[8px] text-gray-500 uppercase">Reps</span>
+                                            <span className="text-cyan-400 font-bold">{ex.reps}</span>
+                                        </div>
+                                        <div 
+                                            className="bg-gray-900/80 flex flex-col items-center justify-center border border-gray-800 cursor-pointer hover:bg-gray-800 transition-colors"
+                                            onClick={() => startRestTimer(ex.restTime, id)}
+                                        >
+                                            {activeTimer === id ? (
+                                                <span className="text-red-500 font-bold animate-pulse">{timeLeft}s</span>
+                                            ) : (
+                                                <>
+                                                    <span className="text-[8px] text-gray-500 uppercase">Descanso</span>
+                                                    <div className="flex items-center gap-1 text-yellow-400 font-bold text-xs">
+                                                        {ex.restTime} <Timer size={10} />
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+                )})
+            ) : (
+                <div className="p-4 border border-red-500 bg-red-900/20 text-red-400 text-center text-sm">
+                    Nenhum exercício carregado. Protocolo de emergência falhou.
                 </div>
-            )})}
+            )}
           </div>
 
           {/* Swap Modal Overlay */}
